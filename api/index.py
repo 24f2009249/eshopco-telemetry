@@ -58,7 +58,7 @@ async def analyze_telemetry(request: Request, response: Response):
             continue
 
         latencies = [r["latency_ms"] for r in region_records if "latency_ms" in r]
-        uptimes = [r["uptime"] for r in region_records if "uptime" in r]
+        uptimes = [r["uptime_pct"] for r in region_records if "uptime_pct" in r]
 
         avg_lat = float(np.mean(latencies)) if latencies else 0.0
         p95_lat = float(np.percentile(latencies, 95)) if latencies else 0.0
