@@ -25,36 +25,30 @@ except Exception:
     TELEMETRY_DATA = []
 
 # Explicitly handle OPTIONS preflight requests for the grader
-@app.options("/{path:path}")
-async def options_handler(path: str, response: Response):
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-    return {"status": "ok"}
-
 @app.post("/")
 async def analyze_telemetry(request: Request, response: Response):
-    # Force manual CORS headers on the POST response as well
     response.headers["Access-Control-Allow-Origin"] = "*"
     response.headers["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS"
     response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    response.headers["Access-Control-Expose-Headers"] = "Access-Control-Allow-Origin"
 
     body = await request.json()
     regions = body.get("regions", [])
     threshold_ms = body.get("threshold_ms", 180)
 
-    results = {}
+    regions_list = []
 
     for region in regions:
         region_records = [r for r in TELEMETRY_DATA if r.get("region") == region]
         
         if not region_records:
-            results[region] = {
+            regions_list.append({
+                "region": region,
                 "avg_latency": 0.0,
                 "p95_latency": 0.0,
                 "avg_uptime": 0.0,
                 "breaches": 0
-            }
+            })
             continue
 
         latencies = [r["latency_ms"] for r in region_records if "latency_ms" in r]
@@ -65,11 +59,13 @@ async def analyze_telemetry(request: Request, response: Response):
         avg_up = float(np.mean(uptimes)) if uptimes else 0.0
         breaches_count = sum(1 for l in latencies if l > threshold_ms)
 
-        results[region] = {
+        regions_list.append({
+            "region": region,
             "avg_latency": avg_lat,
             "p95_latency": p95_lat,
             "avg_uptime": avg_up,
             "breaches": breaches_count
-        }
+        })
 
-    return results
+    # Return a dictionary with a "regions" array
+    return {"regions": regions_list}
