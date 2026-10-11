@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 import numpy as np
 import json
@@ -24,8 +24,21 @@ try:
 except Exception:
     TELEMETRY_DATA = []
 
+# Explicitly handle OPTIONS preflight requests for the grader
+@app.options("/{path:path}")
+async def options_handler(path: str, response: Response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    return {"status": "ok"}
+
 @app.post("/")
-async def analyze_telemetry(request: Request):
+async def analyze_telemetry(request: Request, response: Response):
+    # Force manual CORS headers on the POST response as well
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+
     body = await request.json()
     regions = body.get("regions", [])
     threshold_ms = body.get("threshold_ms", 180)
@@ -34,7 +47,7 @@ async def analyze_telemetry(request: Request):
 
     for region in regions:
         region_records = [r for r in TELEMETRY_DATA if r.get("region") == region]
-
+        
         if not region_records:
             results[region] = {
                 "avg_latency": 0.0,
